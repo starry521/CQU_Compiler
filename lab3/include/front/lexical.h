@@ -22,6 +22,7 @@
 #include"front/token.h"
 
 #include<set>
+#include<map>
 #include<vector>
 #include<string>
 #include<fstream>
@@ -41,6 +42,8 @@ std::string toString(State);
  
 // we should distinguish the keyword and a variable(function) name, so we need a keyword table here
 extern std::set<std::string> keywords;
+extern std::set<char> operators;
+extern std::map<std::string, char> comb_op;
 
 // definition of DFA
 struct DFA {
@@ -57,6 +60,15 @@ struct DFA {
     // the meaning of copy and assignment for a DFA is not clear, so we do not allow them
     DFA(const DFA&) = delete;   // copy constructor
     DFA& operator=(const DFA&) = delete;    // assignment
+
+    //自定义函数
+    bool  isoperator(char  c);
+    TokenType get_op_type(std::string  s);
+    bool iskeyword(std::string  s);     //判断是否是关键字
+    TokenType get_keyword_type(std::string  s);
+    bool ishex(char  c);     //判断是否为十六进制字符
+    bool isnum(std::string  s);     //判断是否为数字串
+    bool is_comb_op(std::string s, char c);          //判断是否符合组合操作符要求
 
     /**
      * @brief take a char as input, change state to next state, and output a Token if necessary

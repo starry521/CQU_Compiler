@@ -29,7 +29,7 @@ namespace frontend
 // definition of symbol table entry
 struct STE {
     ir::Operand operand;
-    vector<int> dimension;
+    vector<int> dimension;  // 数组每一个维度的维数
 };
 
 using map_str_ste = map<string, STE>;
@@ -45,8 +45,9 @@ map<std::string,ir::Function*>* get_lib_funcs();
 
 // definition of symbol table
 struct SymbolTable{
-    vector<ScopeInfo> scope_stack;
-    map<std::string,ir::Function*> functions;
+    vector<ScopeInfo> scope_stack;  // 作用域向量
+    map<std::string, ir::Function*> functions;  // 名字--ir::function,方便调用
+    int block_cnt = 0;  // 当前作用域编号
 
     /**
      * @brief enter a new scope, record the infomation in scope stacks
@@ -92,9 +93,10 @@ struct SymbolTable{
 
 // singleton class
 struct Analyzer {
-    int tmp_cnt;
-    vector<ir::Instruction*> g_init_inst;
-    SymbolTable symbol_table;
+    int tmp_cnt;    // 临时变量计数器
+    vector<ir::Instruction*> g_init_inst;   // 全局初始化IR向量
+    SymbolTable symbol_table;     // 符号表
+    ir::Function* curr_function = nullptr;  // 当前函数
 
     /**
      * @brief constructor
@@ -107,6 +109,38 @@ struct Analyzer {
     // reject copy & assignment
     Analyzer(const Analyzer&) = delete;
     Analyzer& operator=(const Analyzer&) = delete;
+
+    // 分析函数
+    void type_transform(ir::Operand& , ir::Operand& , vector<ir::Instruction*>& );
+
+    void analysisCompUnit(CompUnit* , ir::Program& );
+    void analysisFuncDef(FuncDef*, ir::Function&);
+    void analysisDecl(Decl*, vector<ir::Instruction*>& );
+    void analysisConstDecl(ConstDecl*, vector<ir::Instruction*>&);
+    void analysisBType(BType*, vector<ir::Instruction*>&);
+    void analysisConstDef(ConstDef*, vector<ir::Instruction*>&);
+    void analysisConstInitVal(ConstInitVal*, vector<ir::Instruction*>&);
+    void analysisVarDecl(VarDecl*, vector<ir::Instruction*>&);
+    void analysisVarDef(VarDef*, vector<ir::Instruction*>&);
+    void analysisInitVal(InitVal*, vector<ir::Instruction*>&);
+    void analysisFuncFParam(FuncFParam*, ir::Function&);
+    void analysisFuncFParams(FuncFParams*, ir::Function&);
+    void analysisBlock(Block*, vector<ir::Instruction*>&);
+    void analysisBlockItem(BlockItem*, vector<ir::Instruction*>&);
+    void analysisStmt(Stmt* , vector<ir::Instruction*>&);
+    void analysisExp(Exp* , vector<ir::Instruction*>&);
+    void analysisCond(Cond* , vector<ir::Instruction*>&);
+    void analysisLVal(LVal* , vector<ir::Instruction*>&);
+    void analysisPrimaryExp(PrimaryExp* , vector<ir::Instruction*>&);
+    void analysisUnaryExp(UnaryExp* , vector<ir::Instruction*>&);
+    void analysisFuncRParams(FuncRParams* , vector<ir::Instruction*>&, ir::CallInst&);
+    void analysisMulExp(MulExp* , vector<ir::Instruction*>&);
+    void analysisAddExp(AddExp* , vector<ir::Instruction*>&);
+    void analysisRelExp(RelExp* , vector<ir::Instruction*>&);
+    void analysisEqExp(EqExp* , vector<ir::Instruction*>&);
+    void analysisLAndExp(LAndExp* , vector<ir::Instruction*>&);
+    void analysisLOrExp(LOrExp* , vector<ir::Instruction*>&);
+    void analysisConstExp(ConstExp* , vector<ir::Instruction*>&);
 };
 
 } // namespace frontend
