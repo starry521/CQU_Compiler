@@ -5,19 +5,34 @@
 
 namespace rv {
 
-// rv interger registers
+// rv interger registers,整型寄存器
 enum class rvREG {
-    /* Xn       its ABI name*/
-    X0,         // zero
-    X1,         // ra
-    X2,         // sp
-    X3,         // gp
-    X4,         // tp
-    X5,         // t0
+    
+    // 常量寄存器,zero
+    X0,         
+
+    // 返回地址ra
+    X1,         
+
+    // 栈指针sp
+    X2,         
+
+    // 全局指针gp
+    X3,         
+
+    // tp
+    X4,         
+
+    // 临时寄存器t0-t2
+    X5,         
     X6,         // .... FIX these comment by reading the risc-v ABI, and u should figure out the role of every register in function call, including its saver(caller/callee)
     X7,
+    
+    // 保存寄存器s0-s1
     X8,
     X9,
+
+    // 函数参数a0-a7
     X10,
     X11,
     X12,
@@ -26,6 +41,8 @@ enum class rvREG {
     X15,
     X16,
     X17,
+
+    // 保存寄存器s2-s11
     X18,
     X19,
     X20,
@@ -36,12 +53,15 @@ enum class rvREG {
     X25,
     X26,
     X27,
+
+    // 临时寄存器t3-t6
     X28,
     X29,
     X30,
     X31,
 };
 std::string toString(rvREG r);  // implement this in ur own way
+
 
 enum class rvFREG {
     F0,
@@ -83,12 +103,12 @@ std::string toString(rvFREG r);  // implement this in ur own way
 // add instruction u need here!
 enum class rvOPCODE {
     // RV32I Base Integer Instructions
-    ADD, SUB, XOR, OR, AND, SLL, SRL, SRA, SLT, SLTU,       // arithmetic & logic
-    ADDI, XORI, ORI, ANDI, SLLI, SRLI, SRAI, SLTI, SLTIU,   // immediate
-    LW, SW,                                                 // load & store
+    ADD, SUB, MUL, DIV, REM, XOR, OR, AND, SLL, SRL, SRA, SLT, SLTU,       // arithmetic & logic
+    ADDI, XORI, ORI, ANDI, SLLI, SRLI, SRAI, SLTI, SLTIU, NOT, SEQZ, SNEZ,                  // immediate
+    LW, SW,                                                                // load & store
     BEQ, BNE, BLT, BGE, BLTU, BGEU,                         // conditional branch
     JAL, JALR,                                              // jump
-
+    NOP,
     // RV32M Multiply Extension
 
     // RV32F / D Floating-Point Extensions
