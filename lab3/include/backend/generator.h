@@ -53,7 +53,7 @@ struct Generator {
     // generate wrapper function
     void gen();
     void gen_func(const ir::Function&);
-    void gen_instr(const ir::Instruction&, std::string& );
+    void gen_instr(ir::Instruction&, std::string& );
 
     void sw(Operand, std::string&);      // 将寄存器t0的值存入内存对应地址
     void lw(Operand, rvREG, std::string&);      // 从内存对应地址取出值存入指定寄存器

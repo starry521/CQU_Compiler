@@ -106,15 +106,16 @@ enum class rvOPCODE {
     ADD, SUB, MUL, DIV, REM, XOR, OR, AND, SLL, SRL, SRA, SLT, SLTU,       // arithmetic & logic
     ADDI, XORI, ORI, ANDI, SLLI, SRLI, SRAI, SLTI, SLTIU, NOT, SEQZ, SNEZ,                  // immediate
     LW, SW,                                                                // load & store
-    BEQ, BNE, BLT, BGE, BLTU, BGEU,                         // conditional branch
+    BEQ, BNE, BLT, BGE, BLTU, BGEU, BNEZ,                        // conditional branch
     JAL, JALR,                                              // jump
     NOP,
+    CALL,
     // RV32M Multiply Extension
 
     // RV32F / D Floating-Point Extensions
 
     // Pseudo Instructions
-    LA, LI, MOV, J,                                         // ...
+    LA, LI, MOV, J, JR                                        // ...
 };
 std::string toString(rvOPCODE r);  // implement this in ur own way
 
