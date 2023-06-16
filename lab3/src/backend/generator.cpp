@@ -268,10 +268,13 @@ void backend::Generator::gen_global(){
 
     auto global_func = program.functions[0];    // global函数
 
-    // 处理变量和数组
-    for (auto inst: global_func.InstVec)
-    {
+    if ((int)global_func.InstVec.size() > 0)
         set_data();
+
+    // 处理变量和数组
+    for (int i=0; i<(int)global_func.InstVec.size(); i++){
+
+        auto inst = global_func.InstVec[i];
 
         // 只处理Int
         if (inst->op == Operator::def)
@@ -304,13 +307,21 @@ void backend::Generator::gen_global(){
             std::cout << "\t.size\t" << inst->des.name << ", " << stoi(inst->op1.name) * 4 << "\n";
             std::cout << "\t.align\t" << "4\n";
             set_label(inst->des.name);
+
+            fout << "\t.word\t";
         }
 
         // 遇到store，增加数组的赋值
         if (inst->op == Operator::store){
-            fout << "\t.word\t" << inst->des.name << "\n";
-            
-            std::cout << "\t.word\t" << inst->des.name << "\n";
+            if (global_func.InstVec[i-1]->op != Operator::alloc){
+                fout << ",";
+            }
+
+            fout << inst->des.name;
+
+            if (global_func.InstVec[i+1]->op != Operator::store){
+                fout << "\n";
+            }
         }
     }
 }
