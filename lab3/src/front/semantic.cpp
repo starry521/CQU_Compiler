@@ -806,9 +806,6 @@ void frontend::Analyzer::analysisStmt(Stmt* root, vector<ir::Instruction*>& buff
             analysisExp(exp, tmp);
             buffer.insert(buffer.end(), tmp.begin(), tmp.end());     // 插入exp IR
 
-            std::cout<<curr_function->name<<std::endl;
-            std::cout<<toString(curr_function->returnType)<<std::endl;
-
             // 根据函数返回类型进行返回
             if (curr_function->returnType == Type::Int)
             {
@@ -817,19 +814,15 @@ void frontend::Analyzer::analysisStmt(Stmt* root, vector<ir::Instruction*>& buff
                     Instruction* rerurn_inst = new Instruction({Operand(exp->v, exp->t), Operand(), Operand(), Operator::_return});
                     buffer.push_back(rerurn_inst);  
 
-                    std::cout<<toString(exp->t)<<std::endl;
-
                 }
                 // Float or FloatLiteral
                 else if (exp->t == Type::FloatLiteral){
                     buffer.push_back(new Instruction({Operand(std::to_string((int)std::stof(exp->v)), Type::IntLiteral), Operand(), Operand(), Operator::_return}));
-                    std::cout<<toString(exp->t)<<std::endl;
                 }
                 else if (exp->t == Type::Float){
                     Operand tmp = Operand("t" + std::to_string(tmp_cnt++), Type::Int);
                     buffer.push_back(new Instruction(Operand(exp->v,Type::Float), Operand(), tmp, Operator::cvt_f2i));
                     buffer.push_back(new Instruction(tmp, Operand(), Operand(), Operator::_return));
-                    std::cout<<toString(exp->t)<<std::endl;
                 }
             }
             else if (curr_function->returnType == Type::Float)
@@ -838,14 +831,12 @@ void frontend::Analyzer::analysisStmt(Stmt* root, vector<ir::Instruction*>& buff
                 if (exp->t == Type::Float || exp->t == Type::FloatLiteral){
                     Instruction* retInst = new Instruction(Operand(exp->v,exp->t), Operand(), Operand(), Operator::_return);
                     buffer.push_back(retInst);
-                    std::cout<<toString(exp->t)<<std::endl;
                 }
                 // Int or IntLiteral
                 else if (exp->t == Type::IntLiteral){
                     float val = (float)std::stoi(exp->v);
                     Instruction* retInst = new Instruction(Operand(std::to_string(val),Type::FloatLiteral), Operand(), Operand(), Operator::_return);
                     buffer.push_back(retInst);
-                    std::cout<<toString(exp->t)<<std::endl;
                 }
                 else if (exp->t == Type::Int){
                     Operand tmp = Operand("t" + std::to_string(tmp_cnt++), Type::Float);
@@ -853,7 +844,6 @@ void frontend::Analyzer::analysisStmt(Stmt* root, vector<ir::Instruction*>& buff
                     Instruction* retInst = new Instruction(tmp, Operand(), Operand(), Operator::_return);
                     buffer.push_back(cvtInst);
                     buffer.push_back(retInst);
-                    std::cout<<toString(exp->t)<<std::endl;
                 }
             }
         }

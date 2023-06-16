@@ -1,5 +1,5 @@
 #include"backend/generator.h"
-
+#include<iostream>
 #include<assert.h>
 
 using ir::Operand;
@@ -56,16 +56,6 @@ std::string rv::toString(rvREG r) {
 
     return "";
 }
-
-
-// std::string rv::toString(rvFREG r) {
-//     switch (r) {
-        
-//         default:
-//             assert(0 && "invalid rvFREG");
-//         }
-//     return "";
-// }
 
 // opcode toString
 std::string rv::toString(rvOPCODE r){
@@ -193,30 +183,43 @@ void backend::Generator::lw(Operand op, rvREG reg, std::string& str){
 void backend::Generator::sw(Operand op, std::string& str){
     if (stackvarmap.find_operand(op) != -1){     // 该变量在栈中已存在
         str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + "," + std::to_string(stackvarmap.find_operand(op)) + "(" + toString(rvREG::X2) + ")\n");
+        
+        std::cout<<("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + "," + std::to_string(stackvarmap.find_operand(op)) + "(" + toString(rvREG::X2) + ")\n");
     }else if (stackvarmap.find_global_operand(Generator::program, op)){    // 该变量为全局变量
         str += ("\t" + toString(rvOPCODE::LA) + "\t" + toString(rvREG::X28) + "," + op.name + "\n");
         str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + ",0(" + toString(rvREG::X28) + ")\n");
+        
+        std::cout<<("\t" + toString(rvOPCODE::LA) + "\t" + toString(rvREG::X28) + "," + op.name + "\n");
+        std::cout<<("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + ",0(" + toString(rvREG::X28) + ")\n");
     }else{      // 该变量不存在，在栈中申请空间
         stackvarmap.add_operand(op);
         str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + "," + std::to_string(stackvarmap.find_operand(op)) + "(" + toString(rvREG::X2) + ")\n");
+        
+        std::cout<<("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + "," + std::to_string(stackvarmap.find_operand(op)) + "(" + toString(rvREG::X2) + ")\n");
     }
 }
 
 
 void backend::Generator::set_data(){
     fout << "\t.data\n";
+    
+    std::cout << "\t.data\n";
 }
 
 
 // 增加全局变量
 void backend::Generator::set_globl(std::string globl_name) {
     fout << "\t.globl\t" << globl_name << "\n";
+    
+    std::cout << "\t.globl\t" << globl_name << "\n";
 }
 
 
 // 增加标签
 void backend::Generator::set_label(std::string label_name) {
     fout<<label_name<<":\n";
+    
+    std::cout<<label_name<<":\n";
 }
 
 
@@ -226,9 +229,13 @@ void backend::Generator::func_init(const ir::Function& func) {
     label_map.clear();  // 清空标签表
     // 遍历IR,对于goto IR，设置标签表
     for(int i=0; i<(int)func.InstVec.size(); i++){
+
         auto inst = func.InstVec[i];    // 当前IR
+
         if (inst->op == ir::Operator::_goto){   // 遇到goto IR
-            int goto_iddr = i + std::stoi(inst->des.name);  // 跳转到的IR所处位置
+
+            int goto_iddr = i + stoi(inst->des.name);  // 跳转到的IR所处位置
+
             if(label_map.find(goto_iddr) == label_map.end()){   // 未出现过
                 label_map[goto_iddr] = "label_" + std::to_string(label_cnt++);     // 跳转地址-标签
             }
@@ -242,6 +249,7 @@ void backend::Generator::gen() {
     
     // 输出基本头部
     fout<<"\t.option nopic\n";
+    std::cout<<"\t.option nopic\n";
 
     gen_global();   // 处理global函数
     
@@ -272,9 +280,16 @@ void backend::Generator::gen_global(){
             fout << "\t.type\t" << inst->des.name << ", @object\n";
             fout << "\t.size\t" << inst->des.name << ", 4\n";
             fout << "\t.align\t" << "4\n";
+
+            std::cout << "\t.globl\t" << inst->des.name << "\n";
+            std::cout << "\t.type\t" << inst->des.name << ", @object\n";
+            std::cout << "\t.size\t" << inst->des.name << ", 4\n";
+            std::cout << "\t.align\t" << "4\n";
             set_label(inst->des.name);
 
             fout << "\t.word\t" << inst->op1.name << "\n";
+            
+            std::cout << "\t.word\t" << inst->op1.name << "\n";
         }
 
         // 遇到alloc，增加数组的定义
@@ -283,12 +298,19 @@ void backend::Generator::gen_global(){
             fout << "\t.type\t" << inst->des.name << ", @object\n";
             fout << "\t.size\t" << inst->des.name << ", " << stoi(inst->op1.name) * 4 << "\n";
             fout << "\t.align\t" << "4\n";
+
+            std::cout << "\t.globl\t" << inst->des.name << "\n";
+            std::cout << "\t.type\t" << inst->des.name << ", @object\n";
+            std::cout << "\t.size\t" << inst->des.name << ", " << stoi(inst->op1.name) * 4 << "\n";
+            std::cout << "\t.align\t" << "4\n";
             set_label(inst->des.name);
         }
 
         // 遇到store，增加数组的赋值
         if (inst->op == Operator::store){
             fout << "\t.word\t" << inst->des.name << "\n";
+            
+            std::cout << "\t.word\t" << inst->des.name << "\n";
         }
     }
 }
@@ -300,6 +322,8 @@ void backend::Generator::gen_func(const ir::Function& func){
     // 增加函数基本头部
     set_globl(func.name);
     fout << "\t.type\t" << func.name << ", @function\n";
+
+    std::cout << "\t.type\t" << func.name << ", @function\n";
     set_label(func.name);   // 增加函数的标签
 
     func_init(func);    // 扫描函数所有确定跳转标签
@@ -313,15 +337,21 @@ void backend::Generator::gen_func(const ir::Function& func){
     for (auto op: func.ParameterList){  // 遍历函数形参
         stackvarmap.add_operand(op);    // 栈中偏移表增加形参,当前偏移量改变
         str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(tmp[i]) + "," + std::to_string(stackvarmap.find_operand(op)) + "(" + toString(rvREG::X2) + ")\n");     // 保存在栈中
+
+        std::cout<<("\t" + toString(rvOPCODE::SW) + "\t" + toString(tmp[i]) + "," + std::to_string(stackvarmap.find_operand(op)) + "(" + toString(rvREG::X2) + ")\n");
     }
 
     curr_ir_iddr = 0;
     for (int i=0; i<(int)func.InstVec.size(); i++) {     //遍历生成函数中指令
-        
+
         if(label_map.find(i) != label_map.end()){   // 当前指令需要增加标签
-            set_label(label_map[i]);
+            str += (label_map[i] + ":\n");
         }
+
         auto inst = func.InstVec[i];    // IR指令
+
+        std::cout<<"["<<curr_ir_iddr<<"] "<<inst->draw()<<"\n";     // 打印IR指令
+
         gen_instr(*inst, str);      // IR转换为risc-v指令
 
         curr_ir_iddr += 1;
@@ -339,11 +369,14 @@ void backend::Generator::gen_func(const ir::Function& func){
     str += ("\t" + toString(rvOPCODE::JR) + "\t" + toString(rvREG::X1) + "\n");   // 返回调用点
 
     str += ("\t.size\t" + func.name + ", .-" + func.name + "\n");
-    str += ("\t.ident\t\"GCC: (GNU) 9.2.0\"\n");
-    str += ("\t.section\t.note.GNU-stack,\"\",@progbits\n");
+    if (func.name == "main"){
+        str += ("\t.ident\t\"GCC: (GNU) 9.2.0\"\n");
+        str += ("\t.section\t.note.GNU-stack,\"\",@progbits\n");
+    }
 
     // 向fout中写入函数的指令
     fout<<str;
+
 }
 
 
@@ -387,12 +420,28 @@ void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str){
 
         } break;
 
+        case Operator::addi: {     // 整数与立即数相加
+            
+            lw(inst.op1, rvREG::X5, str);   // t0 load op1
+            str += ("\t" + toString(rvOPCODE::ADDI) + "\t" + toString(rvREG::X7) + "," + toString(rvREG::X5) + "," + inst.op2.name + "\n");
+            sw(inst.des, str);
+
+        } break;
+
+        case Operator::subi: {     // 整数与立即数相减
+
+            lw(inst.op1, rvREG::X5, str);   // t0 load op1
+            str += ("\t" + toString(rvOPCODE::ADDI) + "\t" + toString(rvREG::X7) + "," + toString(rvREG::X5) + ",-" + inst.op2.name + "\n");   // t1 load op2(立即数)
+            sw(inst.des, str);
+
+        } break;
+
         case Operator::leq: {   // <=, 例如a<=b, 转换为a>b取反, a>b转换为b<a
 
             lw(inst.op2, rvREG::X5, str);   // t0 load op2
             lw(inst.op1, rvREG::X6, str);   // t1 load op1
             str += ("\t" + toString(rvOPCODE::SLT) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X6) + "\n");
-            str += ("\t" + toString(rvOPCODE::NOT) + "\t" + toString(rvREG::X7) + "," + toString(rvREG::X5) + "\n");
+            str += ("\t" + toString(rvOPCODE::SEQZ) + "\t" + toString(rvREG::X7) + "," + toString(rvREG::X5) + "\n");
             sw(inst.des, str);  // des save t2
 
         } break;
@@ -402,7 +451,7 @@ void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str){
             lw(inst.op1, rvREG::X5, str);   // t0 load op1
             lw(inst.op2, rvREG::X6, str);   // t1 load op2
             str += ("\t" + toString(rvOPCODE::SLT) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X6) + "\n");
-            str += ("\t" + toString(rvOPCODE::NOT) + "\t" + toString(rvREG::X7) + "," + toString(rvREG::X5) + "\n");
+            str += ("\t" + toString(rvOPCODE::SEQZ) + "\t" + toString(rvREG::X7) + "," + toString(rvREG::X5) + "\n");
             sw(inst.des, str);  // des save t2
 
         } break;
@@ -464,6 +513,7 @@ void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str){
                     std::string offset = std::to_string(stackvarmap.find_operand(inst.op1) + stoi(inst.op2.name) * 4);     // 栈内偏移=数组偏移+组内偏移
                     str += ("\t" + toString(rvOPCODE::LW) + "\t" + toString(rvREG::X7) + "," + offset + "(" + toString(rvREG::X2) + ")\n");   // 地址=栈指针+栈内偏移=sp+offset
                     sw(inst.des, str);
+                    
                 }else {      // 数组为全局变量
                     std::string offset = std::to_string(stoi(inst.op2.name) * 4);   //偏移量
                     str += ("\t" + toString(rvOPCODE::LA) + "\t" + toString(rvREG::X6) + "," + inst.op1.name + "\n");     // t1 load symbol 
@@ -480,6 +530,7 @@ void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str){
                     str += ("\t" + toString(rvOPCODE::ADD) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X2) + "\n");   // 地址=栈指针+栈内偏移=sp+offset
                     str += ("\t" + toString(rvOPCODE::LW) + "\t" + toString(rvREG::X7) + ",0(" + toString(rvREG::X5) + ")\n");
                     sw(inst.des, str);
+
                 }else{  // 数组为全局变量
                     lw(inst.op2, rvREG::X5, str);    // t0 load 偏移量
                     str += ("\t" + toString(rvOPCODE::SLLI) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + ",2\n");  // 偏移量*4，置于t0
@@ -554,10 +605,10 @@ void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str){
         case Operator::_goto: {     // 跳转语句
 
             if (inst.op1.type == ir::Type::null){   // 跳转条件op类型为null,即无条件跳转
-                str += ("\t" + toString(rvOPCODE::J) + "\t" + label_map[curr_ir_iddr + stoi(inst.des.name)]);  // 直接跳转
+                str += ("\t" + toString(rvOPCODE::J) + "\t" + label_map[curr_ir_iddr + stoi(inst.des.name)] + "\n");  // 直接跳转
             }else{  // 有整形跳转条件
                 lw(inst.op1, rvREG::X5, str);   // t0 load cond value
-                str += ("\t" + toString(rvOPCODE::BNEZ) + "\t" + toString(rvREG::X5) + "," + label_map[curr_ir_iddr + stoi(inst.des.name)]);   // 条件不等于0发生跳转
+                str += ("\t" + toString(rvOPCODE::BNEZ) + "\t" + toString(rvREG::X5) + "," + label_map[curr_ir_iddr + stoi(inst.des.name)] + "\n");   // 条件不等于0发生跳转
             }
 
         } break;
@@ -570,6 +621,7 @@ void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str){
             auto call_inst = dynamic_cast<ir::CallInst*>(&inst);     // 获取子类
 
             if (call_inst->op1.name != "global"){
+
                 for (auto op: call_inst->argumentList){  // 遍历调用者实参
                     if (op.type == ir::Type::IntLiteral){   // 实参为立即数
                         str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(tmp[i]) + "," + op.name + "\n");  
@@ -579,6 +631,9 @@ void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str){
                 }
 
                 str += ("\t" + toString(rvOPCODE::CALL) + "\t" + call_inst->op1.name + "\n");
+
+                stackvarmap.add_operand(inst.des);  // 栈中增加临时变量
+                str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X10) + "," + std::to_string(stackvarmap.find_operand(inst.des)) + "(" + toString(rvREG::X2) + ")\n");  // 将a0中返回值存到临时变量对应的栈偏移中
             }
 
         } break;

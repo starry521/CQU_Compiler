@@ -36,7 +36,7 @@ struct Generator {
     const ir::Program& program;         // the program to gen,IR程序
     std::ofstream& fout;                 // output file
     stackVarMap stackvarmap;    // 栈中变量偏移表
-    int label_cnt;  // 标签计数器
+    int label_cnt=0;  // 标签计数器
     std::map<int, std::string> label_map;   // 标签映射表
 
     int curr_ir_iddr;   // 当前函数中当前是第几条ir
