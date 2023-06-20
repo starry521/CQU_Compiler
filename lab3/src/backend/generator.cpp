@@ -184,42 +184,32 @@ void backend::Generator::sw(Operand op, std::string& str){
     if (stackvarmap.find_operand(op) != -1){     // 该变量在栈中已存在
         str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + "," + std::to_string(stackvarmap.find_operand(op)) + "(" + toString(rvREG::X2) + ")\n");
         
-        std::cout<<("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + "," + std::to_string(stackvarmap.find_operand(op)) + "(" + toString(rvREG::X2) + ")\n");
     }else if (stackvarmap.find_global_operand(Generator::program, op)){    // 该变量为全局变量
         str += ("\t" + toString(rvOPCODE::LA) + "\t" + toString(rvREG::X28) + "," + op.name + "\n");
         str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + ",0(" + toString(rvREG::X28) + ")\n");
         
-        std::cout<<("\t" + toString(rvOPCODE::LA) + "\t" + toString(rvREG::X28) + "," + op.name + "\n");
-        std::cout<<("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + ",0(" + toString(rvREG::X28) + ")\n");
     }else{      // 该变量不存在，在栈中申请空间
         stackvarmap.add_operand(op);
         str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + "," + std::to_string(stackvarmap.find_operand(op)) + "(" + toString(rvREG::X2) + ")\n");
         
-        std::cout<<("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + "," + std::to_string(stackvarmap.find_operand(op)) + "(" + toString(rvREG::X2) + ")\n");
     }
 }
 
 
 void backend::Generator::set_data(){
     fout << "\t.data\n";
-    
-    std::cout << "\t.data\n";
 }
 
 
 // 增加全局变量
 void backend::Generator::set_globl(std::string globl_name) {
     fout << "\t.globl\t" << globl_name << "\n";
-    
-    std::cout << "\t.globl\t" << globl_name << "\n";
 }
 
 
 // 增加标签
 void backend::Generator::set_label(std::string label_name) {
     fout<<label_name<<":\n";
-    
-    std::cout<<label_name<<":\n";
 }
 
 
@@ -249,7 +239,6 @@ void backend::Generator::gen() {
     
     // 输出基本头部
     fout<<"\t.option nopic\n";
-    std::cout<<"\t.option nopic\n";
 
     gen_global();   // 处理global函数
     
@@ -268,7 +257,7 @@ void backend::Generator::gen_global(){
 
     auto global_func = program.functions[0];    // global函数
 
-    if ((int)global_func.InstVec.size() > 0)
+    if ((int)global_func.InstVec.size() > 1)    // global函数有一条return null,大于一时有全局变量
         set_data();
 
     // 处理变量和数组
@@ -283,16 +272,9 @@ void backend::Generator::gen_global(){
             fout << "\t.type\t" << inst->des.name << ", @object\n";
             fout << "\t.size\t" << inst->des.name << ", 4\n";
             fout << "\t.align\t" << "4\n";
-
-            std::cout << "\t.globl\t" << inst->des.name << "\n";
-            std::cout << "\t.type\t" << inst->des.name << ", @object\n";
-            std::cout << "\t.size\t" << inst->des.name << ", 4\n";
-            std::cout << "\t.align\t" << "4\n";
             set_label(inst->des.name);
 
             fout << "\t.word\t" << inst->op1.name << "\n";
-            
-            std::cout << "\t.word\t" << inst->op1.name << "\n";
         }
 
         // 遇到alloc，增加数组的定义
@@ -301,11 +283,6 @@ void backend::Generator::gen_global(){
             fout << "\t.type\t" << inst->des.name << ", @object\n";
             fout << "\t.size\t" << inst->des.name << ", " << stoi(inst->op1.name) * 4 << "\n";
             fout << "\t.align\t" << "4\n";
-
-            std::cout << "\t.globl\t" << inst->des.name << "\n";
-            std::cout << "\t.type\t" << inst->des.name << ", @object\n";
-            std::cout << "\t.size\t" << inst->des.name << ", " << stoi(inst->op1.name) * 4 << "\n";
-            std::cout << "\t.align\t" << "4\n";
             set_label(inst->des.name);
 
             fout << "\t.word\t";
@@ -334,7 +311,6 @@ void backend::Generator::gen_func(const ir::Function& func){
     set_globl(func.name);
     fout << "\t.type\t" << func.name << ", @function\n";
 
-    std::cout << "\t.type\t" << func.name << ", @function\n";
     set_label(func.name);   // 增加函数的标签
 
     func_init(func);    // 扫描函数所有确定跳转标签
@@ -346,10 +322,15 @@ void backend::Generator::gen_func(const ir::Function& func){
     std::map<int, rvREG> tmp = {{0, rvREG::X10}, {1, rvREG::X11}, {2, rvREG::X12}, {3, rvREG::X13}, {4, rvREG::X14}, {5, rvREG::X15}, {6, rvREG::X16}, {7, rvREG::X17}};
     int i = 0;
     for (auto op: func.ParameterList){  // 遍历函数形参
-        stackvarmap.add_operand(op);    // 栈中偏移表增加形参,当前偏移量改变
-        str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(tmp[i]) + "," + std::to_string(stackvarmap.find_operand(op)) + "(" + toString(rvREG::X2) + ")\n");     // 保存在栈中
+        if (op.type == ir::Type::Int){  // Int
+            stackvarmap.add_operand(op);    // 栈中偏移表增加形参,当前偏移量改变
+            str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(tmp[i]) + "," + std::to_string(stackvarmap.find_operand(op)) + "(" + toString(rvREG::X2) + ")\n");     // 保存在栈中
+        }else if (op.type == ir::Type::IntPtr){  // 数组指针
+            stackvarmap.add_operand(op);    // 栈中偏移表增加形参,当前偏移量改变
+            str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(tmp[i]) + "," + std::to_string(stackvarmap.find_operand(op)) + "(" + toString(rvREG::X2) + ")\n");
+        }
 
-        std::cout<<("\t" + toString(rvOPCODE::SW) + "\t" + toString(tmp[i]) + "," + std::to_string(stackvarmap.find_operand(op)) + "(" + toString(rvREG::X2) + ")\n");
+        i += 1;
     }
 
     curr_ir_iddr = 0;
@@ -361,9 +342,7 @@ void backend::Generator::gen_func(const ir::Function& func){
 
         auto inst = func.InstVec[i];    // IR指令
 
-        std::cout<<"["<<curr_ir_iddr<<"] "<<inst->draw()<<"\n";     // 打印IR指令
-
-        gen_instr(*inst, str);      // IR转换为risc-v指令
+        gen_instr(*inst, str, func);      // IR转换为risc-v指令
 
         curr_ir_iddr += 1;
     }
@@ -392,7 +371,7 @@ void backend::Generator::gen_func(const ir::Function& func){
 
 
 // 生成Instruction汇编
-void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str){
+void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str, const ir::Function& func){
 
     switch(inst.op){
         // and和or IR在lab2处理成短路，因此不用处理and和or
@@ -421,6 +400,20 @@ void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str){
             if (inst.op == Operator::gtr){      //gtr IR转换时使用slt,因此交换rs1和rs2 
                 lw(inst.op2, rvREG::X5, str);
                 lw(inst.op1, rvREG::X6, str);
+            }else if(inst.op == Operator::mod){     // mod IR有点特殊，实验二生成的IR有a mod b / a mod 3
+                
+                if (inst.op1.type == ir::Type::IntLiteral){     // 操作数1是常量，使用LI
+                    str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X5) + "," + inst.op1.name + "\n");
+                }else{
+                    lw(inst.op1, rvREG::X5, str);
+                }
+                
+                if (inst.op2.type == ir::Type::IntLiteral){     // 操作数2是常量，使用LI
+                    str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X6) + "," + inst.op2.name + "\n");
+                }else{
+                    lw(inst.op2, rvREG::X6, str);
+                }
+
             }else{
                 lw(inst.op1, rvREG::X5, str);
                 lw(inst.op2, rvREG::X6, str);
@@ -501,11 +494,10 @@ void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str){
 
         } break;
 
-        case Operator::mov: 
-        case Operator::def: {
+        case Operator::mov:
+        case Operator::def: {   // def 目的操作数不存在
             
             if (inst.op1.type == ir::Type::IntLiteral){     // 操作数为立即数
-                stackvarmap.add_operand(inst.des);  // 偏移表中增加
                 str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X7) + "," + inst.op1.name + "\n");
                 sw(inst.des, str);
             }else{      // 操作数为变量
@@ -521,28 +513,73 @@ void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str){
             if (inst.op2.type == ir::Type::IntLiteral){     // 组内偏移量为立即数
 
                 if (stackvarmap.find_operand(inst.op1) != -1){   // 数组为局部变量
-                    std::string offset = std::to_string(stackvarmap.find_operand(inst.op1) + stoi(inst.op2.name) * 4);     // 栈内偏移=数组偏移+组内偏移
-                    str += ("\t" + toString(rvOPCODE::LW) + "\t" + toString(rvREG::X7) + "," + offset + "(" + toString(rvREG::X2) + ")\n");   // 地址=栈指针+栈内偏移=sp+offset
-                    sw(inst.des, str);
+
+                    int flag = 0;
+                    for (int i=0; i<(int)func.ParameterList.size(); i++){   // 遍历当前函数形参
+                        if (inst.op1.name == func.ParameterList[i].name){
+                            flag = 1;
+                            break;
+                        }
+                    }
+
+                    if (flag){  // 数组指针是函数参数
+
+                        lw(inst.op1, rvREG::X5, str);
+                        std::string offset = std::to_string(stoi(inst.op2.name) * 4);
+                        str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X6) + "," + offset + "\n");
+                        str += ("\t" + toString(rvOPCODE::ADD) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X6) + "\n");
+                        str += ("\t" + toString(rvOPCODE::LW) + "\t" + toString(rvREG::X7) + ",0(" + toString(rvREG::X5) + ")\n");
+                        sw(inst.des, str);
+
+                    }else{  // 函数内定义的数组
+                        
+                        std::string offset = std::to_string(stackvarmap.find_operand(inst.op1) + stoi(inst.op2.name) * 4);     // 栈内偏移=数组偏移+组内偏移
+                        str += ("\t" + toString(rvOPCODE::LW) + "\t" + toString(rvREG::X7) + "," + offset + "(" + toString(rvREG::X2) + ")\n");   // 地址=栈指针+栈内偏移=sp+offset
+                        sw(inst.des, str);
+                    }
                     
-                }else {      // 数组为全局变量
+                }else if (stackvarmap.find_global_operand(program, inst.op1)){      // 数组为全局变量
+                    
                     std::string offset = std::to_string(stoi(inst.op2.name) * 4);   //偏移量
                     str += ("\t" + toString(rvOPCODE::LA) + "\t" + toString(rvREG::X6) + "," + inst.op1.name + "\n");     // t1 load symbol 
                     str += ("\t" + toString(rvOPCODE::LW) + "\t" + toString(rvREG::X7) + "," + offset + "(" + toString(rvREG::X6) + ")\n");   // 地址=基址+偏移量
                     sw(inst.des, str);
                 }
+
             }else{      // 组内偏移量为变量
 
                 if (stackvarmap.find_operand(inst.op1) != -1){   // 数组为局部变量
-                    lw(inst.op2, rvREG::X5, str);    // t0 load 偏移量
-                    str += ("\t" + toString(rvOPCODE::SLLI) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + ",2\n");  // 偏移量*4，置于t0
-                    str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X6) + "," + std::to_string(stackvarmap.find_operand(inst.op1)) + "\n");  // 数组栈内偏移，置于t1
-                    str += ("\t" + toString(rvOPCODE::ADD) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X6) + "\n");   // 栈内偏移=数组偏移+组内偏移
-                    str += ("\t" + toString(rvOPCODE::ADD) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X2) + "\n");   // 地址=栈指针+栈内偏移=sp+offset
-                    str += ("\t" + toString(rvOPCODE::LW) + "\t" + toString(rvREG::X7) + ",0(" + toString(rvREG::X5) + ")\n");
-                    sw(inst.des, str);
+                    
+                    int flag = 0;
+                    for (int i=0; i<(int)func.ParameterList.size(); i++){   // 遍历当前函数形参
+                        if (inst.op1.name == func.ParameterList[i].name){
+                            flag = 1;
+                            break;
+                        }
+                    }
+
+                    if (flag){  // 函数传进来的数组
+
+                        lw(inst.op1, rvREG::X5, str);   // t0 load arr addr
+                        lw(inst.op2, rvREG::X6, str);   // t1 load 偏移量
+                        str += ("\t" + toString(rvOPCODE::SLLI) + "\t" + toString(rvREG::X6) + "," + toString(rvREG::X6) + ",2\n");  // 偏移量*4
+                        str += ("\t" + toString(rvOPCODE::ADD) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X6) + "\n");
+                        str += ("\t" + toString(rvOPCODE::LW) + "\t" + toString(rvREG::X7) + ",0(" + toString(rvREG::X5) + ")\n");
+                        sw(inst.des, str);
+
+                    }else{      // 函数内定义的数组 
+
+                        lw(inst.op2, rvREG::X5, str);    // t0 load 偏移量
+                        str += ("\t" + toString(rvOPCODE::SLLI) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + ",2\n");  // 偏移量*4，置于t0
+                        str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X6) + "," + std::to_string(stackvarmap.find_operand(inst.op1)) + "\n");  // 数组栈内偏移，置于t1
+                        str += ("\t" + toString(rvOPCODE::ADD) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X6) + "\n");   // 栈内偏移=数组偏移+组内偏移
+                        str += ("\t" + toString(rvOPCODE::ADD) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X2) + "\n");   // 地址=栈指针+栈内偏移=sp+offset
+                        str += ("\t" + toString(rvOPCODE::LW) + "\t" + toString(rvREG::X7) + ",0(" + toString(rvREG::X5) + ")\n");
+                        sw(inst.des, str);
+                    }
 
                 }else{  // 数组为全局变量
+                    
                     lw(inst.op2, rvREG::X5, str);    // t0 load 偏移量
                     str += ("\t" + toString(rvOPCODE::SLLI) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + ",2\n");  // 偏移量*4，置于t0
                     str += ("\t" + toString(rvOPCODE::LA) + "\t" + toString(rvREG::X6) + "," + inst.op1.name + "\n");     // t1 load symbol
@@ -559,31 +596,108 @@ void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str){
             if (inst.op2.type == ir::Type::IntLiteral){     // 组内偏移量为立即数
 
                 if (stackvarmap.find_operand(inst.op1) != -1){   // 数组为局部变量
-                    std::string offset = std::to_string(stackvarmap.find_operand(inst.op1) + stoi(inst.op2.name) * 4);     // 栈内偏移=数组偏移+组内偏移
-                    str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X7) + "," + inst.des.name + "\n");
-                    str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + "," + offset + "(" + toString(rvREG::X2) + ")\n");   // 地址=栈指针+栈内偏移=sp+offset
+                    
+                    int flag = 0;
+                    for (int i=0; i<(int)func.ParameterList.size(); i++){   // 遍历当前函数形参
+                        if (inst.op1.name == func.ParameterList[i].name){
+                            flag = 1;
+                            break;
+                        }
+                    }
+
+                    if (flag){      // 数组指针是函数参数
+                        
+                        lw(inst.op1, rvREG::X5, str);
+                        std::string offset = std::to_string(stoi(inst.op2.name) * 4);
+                        str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X6) + "," + offset + "\n");
+                        str += ("\t" + toString(rvOPCODE::ADD) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X6) + "\n");
+                        
+                        if (inst.des.type == ir::Type::IntLiteral)
+                            str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X7) + "," + inst.des.name + "\n");
+                        else
+                            lw(inst.des, rvREG::X7, str);   // t1 load 存放变量
+                        
+                        str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + ",0(" + toString(rvREG::X5) + ")\n");
+
+                    }else{
+
+                        std::string offset = std::to_string(stackvarmap.find_operand(inst.op1) + stoi(inst.op2.name) * 4);     // 栈内偏移=数组偏移+组内偏移
+                        
+                        if (inst.des.type == ir::Type::IntLiteral)
+                            str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X7) + "," + inst.des.name + "\n");
+                        else
+                            lw(inst.des, rvREG::X7, str);   // t1 load 存放变量
+
+                        str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + "," + offset + "(" + toString(rvREG::X2) + ")\n");   // 地址=栈指针+栈内偏移=sp+offset
+                    }
+                
                 }else {      // 数组为全局变量
+                    
                     std::string offset = std::to_string(stoi(inst.op2.name) * 4);   //偏移量
-                    str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X7) + "," + inst.des.name + "\n");
+                    
+                    if (inst.des.type == ir::Type::IntLiteral)
+                        str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X7) + "," + inst.des.name + "\n");
+                    else
+                        lw(inst.des, rvREG::X7, str);   // t1 load 存放变量
+
                     str += ("\t" + toString(rvOPCODE::LA) + "\t" + toString(rvREG::X6) + "," + inst.op1.name + "\n");     // t1 load symbol 
                     str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + "," + offset + "(" + toString(rvREG::X6) + ")\n");   // 地址=基址+偏移量
                 }
+
             }else{      // 组内偏移量为变量
 
                 if (stackvarmap.find_operand(inst.op1) != -1){   // 数组为局部变量
-                    lw(inst.op2, rvREG::X5, str);    // t0 load 偏移量
-                    str += ("\t" + toString(rvOPCODE::SLLI) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + ",2\n");  // 偏移量*4，置于t0
-                    str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X6) + "," + std::to_string(stackvarmap.find_operand(inst.op1)) + "\n");  // 数组栈内偏移，置于t1
-                    str += ("\t" + toString(rvOPCODE::ADD) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X6) + "\n");   // 栈内偏移=数组偏移+组内偏移
-                    str += ("\t" + toString(rvOPCODE::ADD) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X2) + "\n");   // 地址=栈指针+栈内偏移=sp+offset
-                    str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X7) + "," + inst.des.name + "\n");
-                    str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + ",0(" + toString(rvREG::X5) + ")\n");
+                    
+                    int flag = 0;
+                    for (int i=0; i<(int)func.ParameterList.size(); i++){   // 遍历当前函数形参
+                        if (inst.op1.name == func.ParameterList[i].name){
+                            flag = 1;
+                            break;
+                        }
+                    }
+
+                    if (flag){  // 函数传进来的数组
+
+                        lw(inst.op1, rvREG::X5, str);   // t0 load arr addr
+                        lw(inst.op2, rvREG::X6, str);   // t1 load 偏移量
+                        str += ("\t" + toString(rvOPCODE::SLLI) + "\t" + toString(rvREG::X6) + "," + toString(rvREG::X6) + ",2\n");  // 偏移量*4
+                        str += ("\t" + toString(rvOPCODE::ADD) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X6) + "\n");
+                        
+                        if (inst.des.type == ir::Type::IntLiteral)
+                            str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X7) + "," + inst.des.name + "\n");
+                        else
+                            lw(inst.des, rvREG::X7, str);   // t1 load 存放变量
+
+                        str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + ",0(" + toString(rvREG::X5) + ")\n");
+
+                    }else{  // 函数内部定义的数组
+                        
+                        lw(inst.op2, rvREG::X5, str);    // t0 load 偏移量
+                        str += ("\t" + toString(rvOPCODE::SLLI) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + ",2\n");  // 偏移量*4，置于t0
+                        str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X6) + "," + std::to_string(stackvarmap.find_operand(inst.op1)) + "\n");  // 数组栈内偏移，置于t1
+                        str += ("\t" + toString(rvOPCODE::ADD) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X6) + "\n");   // 栈内偏移=数组偏移+组内偏移
+                        str += ("\t" + toString(rvOPCODE::ADD) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X2) + "\n");   // 地址=栈指针+栈内偏移=sp+offset
+                        
+                        if (inst.des.type == ir::Type::IntLiteral)
+                            str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X7) + "," + inst.des.name + "\n");
+                        else
+                            lw(inst.des, rvREG::X7, str);   // t1 load 存放变量
+
+                        str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + ",0(" + toString(rvREG::X5) + ")\n");
+                    }
+                
                 }else{  // 数组为全局变量
+                    
                     lw(inst.op2, rvREG::X5, str);    // t0 load 偏移量
                     str += ("\t" + toString(rvOPCODE::SLLI) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + ",2\n");  // 偏移量*4，置于t0
                     str += ("\t" + toString(rvOPCODE::LA) + "\t" + toString(rvREG::X6) + "," + inst.op1.name + "\n");     // t1 load symbol
                     str += ("\t" + toString(rvOPCODE::ADD) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X6) + "\n");   // 地址=数组基址+偏移*4
-                    str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X7) + "," + inst.des.name + "\n");
+                    
+                    if (inst.des.type == ir::Type::IntLiteral)
+                        str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X7) + "," + inst.des.name + "\n");
+                    else
+                        lw(inst.des, rvREG::X7, str);   // t1 load 存放变量
+
                     str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + ",0(" + toString(rvREG::X5) + ")\n");
                 }
             }
@@ -593,7 +707,7 @@ void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str){
         case Operator::alloc: {     // 数组分配空间IR
             
             // 出现在global函数中的alloc是全局变量
-            if (!stackvarmap.find_global_operand(program, inst.des)){   // 不是全局数组
+            if (!stackvarmap.find_global_operand(program, inst.des)){   // 不是全局数组,是栈中的
                 stackvarmap._table.insert({inst.des, stackvarmap.curr_offset});     // 插入栈中符号偏移表
                 stackvarmap.curr_offset += (stoi(inst.op1.name) * 4);  // 偏移
             }
@@ -617,7 +731,11 @@ void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str){
 
             if (inst.op1.type == ir::Type::null){   // 跳转条件op类型为null,即无条件跳转
                 str += ("\t" + toString(rvOPCODE::J) + "\t" + label_map[curr_ir_iddr + stoi(inst.des.name)] + "\n");  // 直接跳转
-            }else{  // 有整形跳转条件
+            }else if (inst.op1.type == ir::Type::IntLiteral){   // 整形立即数跳转条件
+                str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X5) + "," + inst.op1.name + "\n");
+                str += ("\t" + toString(rvOPCODE::BNEZ) + "\t" + toString(rvREG::X5) + "," + label_map[curr_ir_iddr + stoi(inst.des.name)] + "\n");   // 条件不等于0发生跳转
+            }
+            else{  // 有整形跳转条件
                 lw(inst.op1, rvREG::X5, str);   // t0 load cond value
                 str += ("\t" + toString(rvOPCODE::BNEZ) + "\t" + toString(rvREG::X5) + "," + label_map[curr_ir_iddr + stoi(inst.des.name)] + "\n");   // 条件不等于0发生跳转
             }
@@ -631,14 +749,46 @@ void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str){
 
             auto call_inst = dynamic_cast<ir::CallInst*>(&inst);     // 获取子类
 
-            if (call_inst->op1.name != "global"){
+            if (call_inst->op1.name != "global"){   // call global IR不进行转换,call global只是实验二的需要
 
                 for (auto op: call_inst->argumentList){  // 遍历调用者实参
+
                     if (op.type == ir::Type::IntLiteral){   // 实参为立即数
+                        
                         str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(tmp[i]) + "," + op.name + "\n");  
-                    }else{      // 实参为变量
-                        lw(op, tmp[i], str);    // ai load op
+                    
+                    }else if(op.type == ir::Type::Int){      // 实参为变量
+                        
+                        lw(op, tmp[i], str);    // ai寄存器 load op
+                    
+                    }else if (op.type == ir::Type::IntPtr){     // 实参为数组指针
+
+                        if (stackvarmap.find_operand(op) != -1){  // 局部数组的指针
+
+                            int flag = 0;
+                            for (int i=0; i<(int)func.ParameterList.size(); i++){   // 遍历当前函数形参
+                                if (op.name == func.ParameterList[i].name){
+                                    flag = 1;
+                                    break;
+                                }
+                            }
+
+                            if (flag){      // 该实参为当前函数数组指针形参
+
+                                lw(op, tmp[i], str);   // 数组第一个元素的位置是函数参数中此数组的位置
+                            
+                            }else{      // 该实参为函数内部数组指针
+                                
+                                str += ("\t" + toString(rvOPCODE::ADDI) + "\t" + toString(tmp[i]) + "," + toString(rvREG::X2) + "," + std::to_string(stackvarmap.find_operand(op)) + "\n");     // 数组第一个元素的位置是当前栈指针加偏移量
+                            }
+
+                        }else if (stackvarmap.find_global_operand(program, op)){    // 实参为全局数组
+
+                            str += ("\t" + toString(rvOPCODE::LA) + "\t" + toString(tmp[i]) + "," + op.name + "\n");
+                        }
                     }
+
+                    i += 1;
                 }
 
                 str += ("\t" + toString(rvOPCODE::CALL) + "\t" + call_inst->op1.name + "\n");

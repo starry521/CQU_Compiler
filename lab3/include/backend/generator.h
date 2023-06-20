@@ -56,7 +56,7 @@ struct Generator {
     void gen();
     void gen_global();
     void gen_func(const ir::Function&);
-    void gen_instr(ir::Instruction&, std::string& );
+    void gen_instr(ir::Instruction&, std::string&, const ir::Function& func);
 
     void sw(ir::Operand, std::string&);      // 将寄存器t0的值存入内存对应地址
     void lw(ir::Operand, rv::rvREG, std::string&);      // 从内存对应地址取出值存入指定寄存器
