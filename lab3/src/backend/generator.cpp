@@ -1,6 +1,7 @@
 #include"backend/generator.h"
 #include<iostream>
 #include<assert.h>
+#include<algorithm>
 
 using ir::Operand;
 using ir::Operator;
@@ -347,16 +348,26 @@ void backend::Generator::gen_func(const ir::Function& func){
         curr_ir_iddr += 1;
     }
 
+    std::string r1 = std::to_string(stackvarmap.curr_offset);
+
     stackvarmap.curr_offset += 4;   // 栈中返回地址(ra)存放需要4字节
+
+    std::string r2 = std::to_string(stackvarmap.curr_offset);
+    
+    int pos1 = 0;
+    while ((pos1 = str.find("%a")) != std::string::npos){  // 循环替换
+        str.replace(pos1, 2, r1);
+    }
+
+    int pos2 = 0;
+    while ((pos2 = str.find("%b")) != std::string::npos){  // 循环替换
+        str.replace(pos2, 2, r2);
+    }
 
     // 函数入口
     str = ("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X1) + "," + std::to_string(stackvarmap.curr_offset - 4) + "(" + toString(rvREG::X2) + ")\n") + str;  // 保存返回地址(将ra保存在栈中)
     str = ("\t" + toString(rvOPCODE::ADDI) + "\t" + toString(rvREG::X2) + "," + toString(rvREG::X2) + ",-" + std::to_string(stackvarmap.curr_offset) + "\n") + str;  //调整栈指针，分配栈帧
 
-    // 函数出口
-    str += ("\t" + toString(rvOPCODE::LW) + "\t" + toString(rvREG::X1) + "," + std::to_string(stackvarmap.curr_offset - 4) + "(" + toString(rvREG::X2) + ")\n");   // 读取返回地址(ra存返回地址)
-    str += ("\t" + toString(rvOPCODE::ADDI) + "\t" + toString(rvREG::X2) + "," + toString(rvREG::X2) + "," + std::to_string(stackvarmap.curr_offset) + "\n");      // 释放栈帧
-    str += ("\t" + toString(rvOPCODE::JR) + "\t" + toString(rvREG::X1) + "\n");   // 返回调用点
 
     str += ("\t.size\t" + func.name + ", .-" + func.name + "\n");
     if (func.name == "main"){
@@ -526,8 +537,10 @@ void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str, cons
 
                         lw(inst.op1, rvREG::X5, str);
                         std::string offset = std::to_string(stoi(inst.op2.name) * 4);
-                        str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X6) + "," + offset + "\n");
-                        str += ("\t" + toString(rvOPCODE::ADD) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X6) + "\n");
+                        if (offset!="0"){
+                            str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X6) + "," + offset + "\n");
+                            str += ("\t" + toString(rvOPCODE::ADD) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X6) + "\n");
+                        }
                         str += ("\t" + toString(rvOPCODE::LW) + "\t" + toString(rvREG::X7) + ",0(" + toString(rvREG::X5) + ")\n");
                         sw(inst.des, str);
 
@@ -609,14 +622,16 @@ void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str, cons
                         
                         lw(inst.op1, rvREG::X5, str);
                         std::string offset = std::to_string(stoi(inst.op2.name) * 4);
-                        str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X6) + "," + offset + "\n");
-                        str += ("\t" + toString(rvOPCODE::ADD) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X6) + "\n");
+                        if (offset!="0"){
+                            str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X6) + "," + offset + "\n");
+                            str += ("\t" + toString(rvOPCODE::ADD) + "\t" + toString(rvREG::X5) + "," + toString(rvREG::X5) + "," + toString(rvREG::X6) + "\n");
+                        }    
                         
                         if (inst.des.type == ir::Type::IntLiteral)
                             str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X7) + "," + inst.des.name + "\n");
                         else
                             lw(inst.des, rvREG::X7, str);   // t1 load 存放变量
-                        
+
                         str += ("\t" + toString(rvOPCODE::SW) + "\t" + toString(rvREG::X7) + ",0(" + toString(rvREG::X5) + ")\n");
 
                     }else{
@@ -716,6 +731,7 @@ void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str, cons
 
         case Operator::_return: {   // 函数返回
 
+            // return null 不对a0做操作
             if (inst.op1.type == ir::Type::IntLiteral){     // 返回值是常量
                 str += ("\t" + toString(rvOPCODE::LI) + "\t" + toString(rvREG::X10) + "," + inst.op1.name + "\n");     // a0置为立即数
             }else if (inst.op1.type == ir::Type::Int){      // 返回值是整型常量
@@ -723,7 +739,11 @@ void backend::Generator::gen_instr(ir::Instruction& inst, std::string& str, cons
                 str += ("\t" + toString(rvOPCODE::MOV) + "\t" + toString(rvREG::X10) + "," + toString(rvREG::X5) + "\n");
             }
 
-            // return null 不对a0做操作
+            // 函数出口
+            str += ("\t" + toString(rvOPCODE::LW) + "\t" + toString(rvREG::X1) + ",%a(" + toString(rvREG::X2) + ")\n");   // 读取返回地址(ra存返回地址)
+            str += ("\t" + toString(rvOPCODE::ADDI) + "\t" + toString(rvREG::X2) + "," + toString(rvREG::X2) + ",%b\n");      // 释放栈帧
+            str += ("\t" + toString(rvOPCODE::JR) + "\t" + toString(rvREG::X1) + "\n");   // 返回调用点
+
 
         } break;
 
