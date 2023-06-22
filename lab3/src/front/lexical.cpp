@@ -99,6 +99,8 @@ frontend::TokenType frontend::DFA::get_op_type(std::string  s) {
         return TokenType::AND;
     else if (s=="||")
         return TokenType::OR;
+    else
+        return TokenType::AND;  // 无含义，只是为了编译不报警告，顺眼
 }
 
 
@@ -131,6 +133,8 @@ frontend::TokenType frontend::DFA::get_keyword_type(std::string s){
         return TokenType::BREAKTK;
     else if (s=="return")
         return TokenType::RETURNTK;
+    else
+        return TokenType::VOIDTK;   // 无含义，不报警告
 }
 
 

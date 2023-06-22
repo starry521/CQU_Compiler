@@ -163,6 +163,7 @@ Operand frontend::SymbolTable::get_operand(string id) const {
             return temp[id].operand;
         }
     }
+    return Operand();
 }
 
 
@@ -175,6 +176,7 @@ frontend::STE frontend::SymbolTable::get_ste(string id) const {
             return temp[id];
         }
     }    
+    return frontend::STE();
 }
 
 
@@ -899,7 +901,6 @@ void frontend::Analyzer::analysisLVal(LVal* root, vector<ir::Instruction*>& buff
 
         STE arr = symbol_table.get_ste(tk.value);
         vector<int> dimension = arr.dimension;  // 维度
-        int size = (int)dimension.size();    // 数组长度
 
         // Ident '[' Exp ']'
         if ((int)root->children.size() == 4){     // 一维数组

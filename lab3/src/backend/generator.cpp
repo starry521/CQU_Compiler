@@ -355,12 +355,12 @@ void backend::Generator::gen_func(const ir::Function& func){
     std::string r2 = std::to_string(stackvarmap.curr_offset);
     
     int pos1 = 0;
-    while ((pos1 = str.find("%a")) != std::string::npos){  // 循环替换
+    while ((pos1 = str.find("%a")) != (int)std::string::npos){  // 循环替换
         str.replace(pos1, 2, r1);
     }
 
     int pos2 = 0;
-    while ((pos2 = str.find("%b")) != std::string::npos){  // 循环替换
+    while ((pos2 = str.find("%b")) != (int)std::string::npos){  // 循环替换
         str.replace(pos2, 2, r2);
     }
 
